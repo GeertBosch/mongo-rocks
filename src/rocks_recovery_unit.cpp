@@ -213,7 +213,6 @@ namespace mongo {
           _db(db),
           _counterManager(counterManager),
           _compactionScheduler(compactionScheduler),
-          _sync(false),
           _durable(durable),
           _transaction(transactionEngine),
           _writeBatch(rocksdb::BytewiseComparator(), 0, true),
@@ -251,21 +250,13 @@ namespace mongo {
         _abort();
     }
 
-    void RocksRecoveryUnit::goingToWaitUntilDurable() {
-        _sync = true;
-    }
-
     bool RocksRecoveryUnit::waitUntilDurable() {
-        // We expect goingToWaitUntilDurable() to always be called before
-        // waitUntilDurable()
-        invariant(_sync);
-
-        // Not sure mongo throws away RecoveryUnits after commit, so reset
-        // _sync to false here
-        _sync = false;
-
-        // Writes will be synced to disk before being considered complete, so
-        // all writes prior to this call are already durable
+        // Not sure what we should do here. waitUntilDurable() is called when WriteConcern is FSYNC
+        // or JOURNAL. In our case, we're doing JOURNAL WriteConcern for each transaction (no matter
+        // WriteConcern). However, if WriteConcern is FSYNC we should probably call Write() with
+        // sync option. So far we're just not doing anything. In the future we should figure which
+        // of the WriteConcerns is this (FSYNC or JOURNAL) and then if it's FSYNC do something
+        // special.
         return true;
     }
 
@@ -312,9 +303,6 @@ namespace mongo {
             // Order of operations here is important. It needs to be synchronized with
             // _transaction.recordSnapshotId() and _db->GetSnapshot() and
             rocksdb::WriteOptions writeOptions;
-            // If _durable == false, then the call to goingToWaitUntilDurable
-            // will have no effect 
-            writeOptions.sync = _sync && _durable;
             writeOptions.disableWAL = !_durable;
             auto status = _db->Write(writeOptions, wb);
             invariantRocksOK(status);

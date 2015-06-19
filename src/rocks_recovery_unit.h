@@ -91,7 +91,6 @@ namespace mongo {
         virtual void commitUnitOfWork();
         virtual void abortUnitOfWork();
 
-        virtual void goingToWaitUntilDurable();
         virtual bool waitUntilDurable();
 
         virtual void abandonSnapshot();
@@ -156,7 +155,6 @@ namespace mongo {
         RocksCounterManager* _counterManager;            // not owned
         RocksCompactionScheduler* _compactionScheduler;  // not owned
 
-        bool _sync;
         const bool _durable;
 
         RocksTransaction _transaction;
